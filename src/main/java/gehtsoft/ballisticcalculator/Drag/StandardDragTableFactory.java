@@ -81,6 +81,16 @@ public final class StandardDragTableFactory {
         return gGS;
     }
 
+    private AdvancedDragTable gRA4;
+
+    /** Gets RA4 ballistic table */
+    public IDragTable getRA4() {
+        if (gRA4 == null) {
+            gRA4 = new RA4Table();
+        }
+        return gRA4;
+    }
+
     private static StandardDragTableFactory gInst;
 
     /** Gets the instance of the factory */
@@ -92,7 +102,7 @@ public final class StandardDragTableFactory {
     }
 
 
-    public IDragTable getTable(DragTableId id) 
+    public IDragTable getTable(DragTableId id)
         throws IllegalArgumentException {
         switch (id) {
             case G1:
@@ -111,6 +121,8 @@ public final class StandardDragTableFactory {
                 return getGI();
             case GS:
                 return getGS();
+            case RA4:
+                return getRA4();
             default:
                 throw new IllegalArgumentException("Unknown table id");
         }

@@ -98,12 +98,12 @@ class TestTrajectoryLoader {
                               .hasSize(21);
 
         var point = trajectory.get(0);
-        assertThat(point.getDistance()).isEqualTo(Quantities.getQuantity(0, CLDR.YARD));
+        assertThat(point.getDistance()).isEqualTo(Quantities.getQuantity(0.0, CLDR.YARD));
         assertThat(point.getVelocity()).isEqualTo(Quantities.getQuantity(3006.6, BCUnits.FEET_PER_SECOND));
         assertThat(point.getMach()).isEqualTo(2.693);
-        assertThat(point.getFlightTime()).isEqualTo(Quantities.getQuantity(0, SI.SECOND));
+        assertThat(point.getFlightTime()).isEqualTo(Quantities.getQuantity(0.0, SI.SECOND));
         assertThat(point.getDrop()).isEqualTo(Quantities.getQuantity(-1.5, CLDR.INCH));
-        assertThat(point.getWindage()).isEqualTo(Quantities.getQuantity(0, CLDR.INCH));
+        assertThat(point.getWindage()).isEqualTo(Quantities.getQuantity(0.0, CLDR.INCH));
         assertThat(point.getEnergy()).isEqualTo(Quantities.getQuantity(4415, BCUnits.FOOT_POUND));
 
 

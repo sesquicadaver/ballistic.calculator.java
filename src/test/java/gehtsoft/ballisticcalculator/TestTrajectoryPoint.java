@@ -16,9 +16,11 @@ class TestTrajectoryPoint {
         TrajectoryPoint tp = new TrajectoryPoint(
             Quantities.getQuantity(32.0, BCUnits.GRAIN),
             Quantities.getQuantity(150, CLDR.YARD),
+            Quantities.getQuantity(160, CLDR.YARD),  // distanceFlat = distance for flat shot
             Quantities.getQuantity(1059.7, BCUnits.FEET_PER_SECOND),
             0.95,
             Quantities.getQuantity(-9.88, CLDR.INCH),
+            Quantities.getQuantity(-19.88, CLDR.INCH),  // dropFlat = drop for flat shot
             Quantities.getQuantity(-14.38, CLDR.INCH),
             Quantities.getQuantity(0, Units.SECOND));
 

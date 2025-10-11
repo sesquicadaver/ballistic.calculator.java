@@ -3,6 +3,7 @@ package gehtsoft.ballisticcalculator.tools;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import javax.measure.*;
 
 import javax.measure.*;
 import javax.measure.quantity.*;
@@ -21,6 +22,7 @@ public class TrajectoryLoader {
     private Atmosphere mAtmosphere;
     private Weapon mWeapon;
     private Wind mWind;
+    private Quantity<Angle> mShotAngle;
     private ArrayList<TrajectoryPoint> mTrajectory = new ArrayList<TrajectoryPoint>();
 
     public Projectile getProjectile() {
@@ -41,6 +43,10 @@ public class TrajectoryLoader {
 
     public ArrayList<TrajectoryPoint> getTrajectory() {
         return mTrajectory;
+    }
+
+    public Quantity<Angle> getShotAngle() {
+        return mShotAngle;
     }
 
     public void load(String name, IDragTable customDragTable) throws IOException {
@@ -73,13 +79,16 @@ public class TrajectoryLoader {
                 mAtmosphere  = parseAtmosphere(values);
             }
             else if (values[0].equals("shot")) {
-                continue;
+                mShotAngle = parseAngle(values[1]);
             }
             else {
                 if (units == null)
                     units = values;
                 else {
-                    mTrajectory.add(parseTrajectoryPoint(values, units));
+                    TrajectoryPoint point = parseTrajectoryPoint(values, units);
+                    if (point != null) {
+                        mTrajectory.add(point);
+                    }
                 }
             }
         }
@@ -257,6 +266,8 @@ public class TrajectoryLoader {
             table = StandardDragTableFactory.getInstance().getG7();
         else if (r[1].equals("G8"))
             table = StandardDragTableFactory.getInstance().getG8();
+        else if (r[1].equals("RA4"))
+            table = StandardDragTableFactory.getInstance().getRA4();
         else if (r[1].equals("GC"))
             table = customTable;
         else
@@ -325,15 +336,17 @@ public class TrajectoryLoader {
         if (values.length == units.length &&
             values.length >= 11) {
                 return new TrajectoryPoint(
-                    parseLength(values[0], units[0]),
-                    parseSpeed(values[5], units[5]),
-                    parseEnergy(values[7], units[7]),
-                    Double.parseDouble(values[6]),
-                    parseLength(values[1], units[1]),
-                    parseAngle(values[2], units[2]),
-                    parseLength(values[3], units[3]),
-                    parseAngle(values[4], units[4]),
-                    Quantities.getQuantity(Double.parseDouble(values[8]), CLDR.SECOND));
+                    parseLength(values[0], units[0]),      // distance
+                    parseLength(values[0], units[0]),      // distanceFlat (same as distance for flat shots)
+                    parseSpeed(values[5], units[5]),       // velocity
+                    parseEnergy(values[7], units[7]),      // energy
+                    Double.parseDouble(values[6]),         // mach
+                    parseLength(values[1], units[1]),      // drop
+                    parseLength(values[1], units[1]),      // dropFlat (same as drop for flat shots)
+                    parseAngle(values[2], units[2]),       // hold
+                    parseLength(values[3], units[3]),      // windage
+                    parseAngle(values[4], units[4]),       // windageAdjustment
+                    Quantities.getQuantity(Double.parseDouble(values[8]), CLDR.SECOND)); // time
             }
         return null;
     }

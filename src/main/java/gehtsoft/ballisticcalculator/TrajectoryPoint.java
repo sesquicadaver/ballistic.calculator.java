@@ -13,9 +13,11 @@ import tech.units.indriya.quantity.Quantities;
 public class TrajectoryPoint
 {
     private Quantity<Length> mDistance;
+    private Quantity<Length> mDistanceFlat;
     private Quantity<Speed> mVelocity;
     private double mMach;
     private Quantity<Length> mDrop;
+    private Quantity<Length> mDropFlat;
     private Quantity<Length> mWindage;
     private Quantity<Energy> mEnergy;
     private Quantity<Angle> mHold;
@@ -23,10 +25,18 @@ public class TrajectoryPoint
     private Quantity<Time> mTime;
 
     /**
-     * The distance from the start of the trajectory.
+     * The distance from the start of the trajectory (along line of sight).
      */
     public Quantity<Length> getDistance() {
         return mDistance;
+    }
+
+    /**
+     * The horizontal distance traveled from the muzzle (flat distance).
+     * When shooting at an angle, this is less than the distance along line of sight.
+     */
+    public Quantity<Length> getDistanceFlat() {
+        return mDistanceFlat;
     }
 
     /**
@@ -46,7 +56,8 @@ public class TrajectoryPoint
 
     /**
      * The drop (vertical deviation) of the projectile vs the line of sight.
-     * 
+     * When shooting at an angle, this is the drop relative to the rotated line of sight.
+     *
      * Positive value is over the line of sight, negative value is under the line of sight.
      */
     public Quantity<Length> getDrop() {
@@ -54,8 +65,16 @@ public class TrajectoryPoint
     }
 
     /**
+     * The vertical drop of the projectile relative to the muzzle (flat drop).
+     * This is the actual vertical distance, not rotated for angled shots.
+     */
+    public Quantity<Length> getDropFlat() {
+        return mDropFlat;
+    }
+
+    /**
      * The windage (horizontal deviation) of the projectile vs the line of sight.
-     * 
+     *
      * Positive value is to the left of the line of sight, negative value is to the right of the line of sight.
      */
     public Quantity<Length> getWindage() {
@@ -90,20 +109,24 @@ public class TrajectoryPoint
         return mTime;
     }
 
-    /** 
+    /**
      * Constructor (for calculation)
      */
     public TrajectoryPoint(final Quantity<Mass> bulletWeight,
-                           final Quantity<Length> distance, 
-                           final Quantity<Speed> velocity, 
-                           final double mach, 
-                           final Quantity<Length> drop, 
-                           final Quantity<Length> windage, 
+                           final Quantity<Length> distance,
+                           final Quantity<Length> distanceFlat,
+                           final Quantity<Speed> velocity,
+                           final double mach,
+                           final Quantity<Length> drop,
+                           final Quantity<Length> dropFlat,
+                           final Quantity<Length> windage,
                            Quantity<Time> time) {
         mDistance = distance;
+        mDistanceFlat = distanceFlat;
         mVelocity = velocity;
         mMach = mach;
         mDrop = drop;
+        mDropFlat = dropFlat;
         mWindage = windage;
         mEnergy = calculateEnergy(bulletWeight, velocity);
         mTime = time;
@@ -118,22 +141,26 @@ public class TrajectoryPoint
     }
 
     @java.lang.SuppressWarnings("java:S107") //this is serialization constructor, it has to be this
-    /** 
+    /**
      * Constructor (for serialization)
      */
-    public TrajectoryPoint(final Quantity<Length> distance, 
-                           final Quantity<Speed> velocity, 
-                           final Quantity<Energy> energy, 
-                           final double mach, 
-                           final Quantity<Length> drop, 
-                           final Quantity<Angle> hold, 
-                           final Quantity<Length> windage, 
-                           final Quantity<Angle> windageAdjustment, 
+    public TrajectoryPoint(final Quantity<Length> distance,
+                           final Quantity<Length> distanceFlat,
+                           final Quantity<Speed> velocity,
+                           final Quantity<Energy> energy,
+                           final double mach,
+                           final Quantity<Length> drop,
+                           final Quantity<Length> dropFlat,
+                           final Quantity<Angle> hold,
+                           final Quantity<Length> windage,
+                           final Quantity<Angle> windageAdjustment,
                            Quantity<Time> time) {
         mDistance = distance;
+        mDistanceFlat = distanceFlat;
         mVelocity = velocity;
         mMach = mach;
         mDrop = drop;
+        mDropFlat = dropFlat;
         mWindage = windage;
         mEnergy = energy;
         mTime = time;

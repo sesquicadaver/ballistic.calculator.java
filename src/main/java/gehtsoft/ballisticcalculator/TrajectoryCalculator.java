@@ -193,7 +193,14 @@ public class TrajectoryCalculator {
             barrelAzimuth = 0;
 
         if (shot.getShotAngle() != null)
-            barrelElevation += UnitUtils.in(shot.getBarrelAzimuth(), SI.RADIAN);
+            barrelElevation += UnitUtils.in(shot.getShotAngle(), SI.RADIAN);
+
+        // Support for angled shots
+        boolean hasShotAngle = shot.getShotAngle() != null;
+        double lineOfSight = hasShotAngle ? UnitUtils.in(shot.getShotAngle(), SI.RADIAN) : 0;
+        double lineOfSightTan = Math.tan(lineOfSight);
+        double lineOfSightCos = Math.cos(lineOfSight);
+        double lineOfSightSin = Math.sin(lineOfSight);
 
         var velocity = UnitUtils.in(ammunition.getMuzzleVelocity(), BCUnits.FEET_PER_SECOND);
         double time = 0;
@@ -249,7 +256,10 @@ public class TrajectoryCalculator {
                 lastAtAltitude = alt;
             }
 
-            if (rangeVector.getX() >= nextRangeDistance)
+            // Calculate actual distance along line of sight for angled shots
+            double distance = rangeVector.getX() / lineOfSightCos;
+
+            if (distance >= nextRangeDistance)
             {
                 var windage = rangeVector.getZ();
                 if (Boolean.TRUE.equals(calculateDrift))
@@ -257,12 +267,27 @@ public class TrajectoryCalculator {
                                        Math.pow(time, 1.83) *
                                        (rifle.getRifling().getTwistDirection() == TwistDirection.RIGHT ? -1 : 1)) / 12.0;
 
+                // Calculate drop and perform coordinate rotation for angled shots
+                double drop = rangeVector.getY();
+                double distanceFlat = rangeVector.getX();
+                double dropFlat = rangeVector.getY();
+
+                if (hasShotAngle) {
+                    // Rotate coordinates from muzzle frame to line-of-sight frame
+                    double y = rangeVector.getY() + UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT);
+                    double xRotated = rangeVector.getX() * lineOfSightCos + y * lineOfSightSin;
+                    double yRotated = -rangeVector.getX() * lineOfSightSin + y * lineOfSightCos;
+                    drop = yRotated - UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT);
+                }
+
                 trajectoryPoints[currentItem] = new TrajectoryPoint(
                     ammunition.getBulletWeight(),
-                    Quantities.getQuantity(rangeVector.getX(), CLDR.FOOT),
+                    Quantities.getQuantity(distance, CLDR.FOOT),
+                    Quantities.getQuantity(distanceFlat, CLDR.FOOT),
                     Quantities.getQuantity(velocity, BCUnits.FEET_PER_SECOND),
                     velocity / mach,
-                    Quantities.getQuantity(rangeVector.getY(), CLDR.FOOT),
+                    Quantities.getQuantity(drop, CLDR.FOOT),
+                    Quantities.getQuantity(dropFlat, CLDR.FOOT),
                     Quantities.getQuantity(windage, CLDR.FOOT),
                     Quantities.getQuantity(time, CLDR.SECOND));
                 nextRangeDistance += step;

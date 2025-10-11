@@ -13,5 +13,7 @@ public enum DragTableId {
     GI,
     GS,
     /** Custom drag table */
-    GC
+    GC,
+    /** RA4 drag model for slugs, rimfire and airguns */
+    RA4
 }

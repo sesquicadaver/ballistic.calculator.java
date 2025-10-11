@@ -1,1 +1,0 @@
-mvn clean verify sonar:sonar -Pcoverage -Dsonar.projectKey=BallisticCalculator.Java -Dsonar.host.url=http://localhost:9000 -Dsonar.login=sqp_1a752da9824d2369024899f6f4a6534f8dd66707
