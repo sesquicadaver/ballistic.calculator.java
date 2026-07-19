@@ -1,5 +1,7 @@
 package gehtsoft.ballisticcalculator.data;
 
+import java.util.Objects;
+
 import gehtsoft.ballisticcalculator.drag.*;
 
 /**
@@ -47,5 +49,33 @@ public class BallisticCoefficient {
         mValue = value;
         mType = type;
         mDragTable = dragTable;
+    }
+
+    private DragTableId tableId() {
+        return mDragTable == null ? null : mDragTable.getID();
+    }
+
+    /**
+     * Two ballistic coefficients are equal when they have the same value type, the same drag table
+     * and a numeric value that matches within a 1e-7 absolute tolerance (avoids round-trip/parse
+     * mismatches).
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!(obj instanceof BallisticCoefficient))
+            return false;
+        BallisticCoefficient other = (BallisticCoefficient) obj;
+        return mType == other.mType &&
+               tableId() == other.tableId() &&
+               Math.abs(mValue - other.mValue) < 1e-7;
+    }
+
+    /** The hash code intentionally omits the numeric value (which is compared with a tolerance) so the
+     * equals/hashCode contract holds. */
+    @Override
+    public int hashCode() {
+        return Objects.hash(mType, tableId());
     }
 }

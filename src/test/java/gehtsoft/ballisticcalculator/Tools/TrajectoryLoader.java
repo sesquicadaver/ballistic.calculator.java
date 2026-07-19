@@ -23,6 +23,9 @@ public class TrajectoryLoader {
     private Weapon mWeapon;
     private Wind mWind;
     private Quantity<Angle> mShotAngle;
+    private Quantity<Angle> mCantAngle;
+    private Quantity<Angle> mBarrelAzimuth;
+    private Quantity<Angle> mLatitude;
     private ArrayList<TrajectoryPoint> mTrajectory = new ArrayList<TrajectoryPoint>();
 
     public Projectile getProjectile() {
@@ -47,6 +50,18 @@ public class TrajectoryLoader {
 
     public Quantity<Angle> getShotAngle() {
         return mShotAngle;
+    }
+
+    public Quantity<Angle> getCantAngle() {
+        return mCantAngle;
+    }
+
+    public Quantity<Angle> getBarrelAzimuth() {
+        return mBarrelAzimuth;
+    }
+
+    public Quantity<Angle> getLatitude() {
+        return mLatitude;
     }
 
     public void load(String name, IDragTable customDragTable) throws IOException {
@@ -79,7 +94,11 @@ public class TrajectoryLoader {
                 mAtmosphere  = parseAtmosphere(values);
             }
             else if (values[0].equals("shot")) {
-                mShotAngle = parseAngle(values[1]);
+                // shot;<shotAngle>;<cantAngle>;<azimuth>;<latitude> (all but shotAngle optional; blank => null)
+                mShotAngle = parseOptionalAngle(values, 1);
+                mCantAngle = parseOptionalAngle(values, 2);
+                mBarrelAzimuth = parseOptionalAngle(values, 3);
+                mLatitude = parseOptionalAngle(values, 4);
             }
             else {
                 if (units == null)
@@ -199,6 +218,16 @@ public class TrajectoryLoader {
     private Quantity<Angle> parseAngle(String value) {
         var r = splitValue(value);
         return parseAngle(r[0], r[1]);
+    }
+
+    // Parses an optional angle field of the shot row; returns null when the field is missing or blank.
+    private Quantity<Angle> parseOptionalAngle(String[] values, int index) {
+        if (index >= values.length)
+            return null;
+        String value = values[index].trim();
+        if (value.isEmpty())
+            return null;
+        return parseAngle(value);
     }
 
     private Quantity<Angle> parseAngle(String value, String unit) {
@@ -333,8 +362,10 @@ public class TrajectoryLoader {
     }
     
     private TrajectoryPoint parseTrajectoryPoint(String[] values, String[] units) {
+        // Both the 11-column (drop/windage in extra units) and the 9-column BE/Coriolis layouts are
+        // accepted; only the first 9 columns are consumed.
         if (values.length == units.length &&
-            values.length >= 11) {
+            values.length >= 9) {
                 return new TrajectoryPoint(
                     parseLength(values[0], units[0]),      // distance
                     parseLength(values[0], units[0]),      // distanceFlat (same as distance for flat shots)

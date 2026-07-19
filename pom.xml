@@ -9,45 +9,61 @@
  <properties>
   <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   <maven.compiler.release>17</maven.compiler.release>
+  <!-- Dependency versions. Test-scope libs may be bumped freely; the uom stack is
+       compile-scope (transitive to consumers) so update it deliberately. -->
+  <junit.version>5.11.4</junit.version>
+  <assertj.version>3.27.3</assertj.version>
+  <indriya.version>2.2</indriya.version>
+  <uom.version>2.1</uom.version>
  </properties>
+ <dependencyManagement>
+  <dependencies>
+   <!-- Keeps all JUnit 5 artifacts on one aligned version. -->
+   <dependency>
+    <groupId>org.junit</groupId>
+    <artifactId>junit-bom</artifactId>
+    <version>${junit.version}</version>
+    <type>pom</type>
+    <scope>import</scope>
+   </dependency>
+  </dependencies>
+ </dependencyManagement>
  <dependencies>
   <dependency>
    <groupId>org.junit.jupiter</groupId>
    <artifactId>junit-jupiter-engine</artifactId>
-   <version>5.11.4</version>
    <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>org.junit.jupiter</groupId>
    <artifactId>junit-jupiter-params</artifactId>
-   <version>5.11.4</version>
    <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>org.assertj</groupId>
    <artifactId>assertj-core</artifactId>
-   <version>3.27.3</version>
+   <version>${assertj.version}</version>
    <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>tech.units</groupId>
    <artifactId>indriya</artifactId>
-   <version>2.2</version>
+   <version>${indriya.version}</version>
   </dependency>
   <dependency>
    <groupId>systems.uom</groupId>
    <artifactId>systems-quantity</artifactId>
-   <version>2.1</version>
+   <version>${uom.version}</version>
   </dependency>
   <dependency>
    <groupId>systems.uom</groupId>
    <artifactId>systems-unicode</artifactId>
-   <version>2.1</version>
+   <version>${uom.version}</version>
   </dependency>
   <dependency>
    <groupId>systems.uom</groupId>
    <artifactId>systems-common</artifactId>
-   <version>2.1</version>
+   <version>${uom.version}</version>
   </dependency>
  </dependencies>
  <build>

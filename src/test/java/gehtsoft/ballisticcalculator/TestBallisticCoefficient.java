@@ -45,4 +45,21 @@ class TestBallisticCoefficient {
 
         assertThat(projectile.getBallisticCoefficientValue()).isEqualTo(0.2482, within(0.00005));
     }
+
+    @Test
+    void equalityWithinTolerance() {
+        BallisticCoefficient a = new BallisticCoefficient(0.365, DragTableId.G1);
+        BallisticCoefficient closeEnough = new BallisticCoefficient(0.365 + 5e-8, DragTableId.G1);
+        BallisticCoefficient tooFar = new BallisticCoefficient(0.365 + 5e-6, DragTableId.G1);
+        BallisticCoefficient otherTable = new BallisticCoefficient(0.365, DragTableId.G7);
+        BallisticCoefficient otherType = new BallisticCoefficient(0.365, BallisticCoefficientValueType.FORMFACTOR,
+                a.getDragTable());
+
+        assertThat(a).isEqualTo(closeEnough);
+        assertThat(a).hasSameHashCodeAs(closeEnough);
+        assertThat(a).isNotEqualTo(tooFar);
+        assertThat(a).isNotEqualTo(otherTable);
+        assertThat(a).isNotEqualTo(otherType);
+        assertThat(a).isNotEqualTo(null);
+    }
 }
