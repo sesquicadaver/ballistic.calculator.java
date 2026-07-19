@@ -47,7 +47,7 @@ public class TrajectoryCalculator {
             atmosphere = new Atmosphere();
 
         var alt0 = UnitUtils.in(atmosphere.getAltitude(), CLDR.FOOT);
-        var altDelta = 12.0;    //12 feet
+        var altDelta = 3.280839895;    //1 meter (matches the C# >1 m density/sound-speed refresh)
 
         double densityFactor = 0;
         double drag;
@@ -108,9 +108,12 @@ public class TrajectoryCalculator {
                 if (dragTableNode == null)
                     dragTableNode = dragTable.find(currentMach);
 
-                //walk towards the beginning the table as velocity drops
-                while (dragTableNode.getPrevious() != null && dragTableNode.getPrevious().getMach() > currentMach)
+                //walk towards the beginning of the table as the air-relative speed drops
+                while (dragTableNode.getMach() > currentMach)
                     dragTableNode = dragTableNode.getPrevious();
+                //walk forward again when the air-relative speed rises (inclined/transonic shots)
+                while (dragTableNode.getNext() != null && dragTableNode.getNext().getMach() <= currentMach)
+                    dragTableNode = dragTableNode.getNext();
 
                 var cd = dragTableNode.calculateDrag(currentMach);
                 drag = accumulatedFactor * densityFactor *
@@ -161,7 +164,7 @@ public class TrajectoryCalculator {
             atmosphere = new Atmosphere();
 
         var alt0 = UnitUtils.in(atmosphere.getAltitude(), CLDR.FOOT);
-        var altDelta = 12.0;    //12 feet
+        var altDelta = 3.280839895;    //1 meter (matches the C# >1 m density/sound-speed refresh)
 
         double densityFactor = 0;
         double drag;
@@ -202,6 +205,39 @@ public class TrajectoryCalculator {
         double lineOfSightCos = Math.cos(lineOfSight);
         double lineOfSightSin = Math.sin(lineOfSight);
 
+        double sightHeightFeet = UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT);
+        double barrelElevationTan = Math.tan(barrelElevation);
+
+        // Coriolis / Eötvös setup (per-output-point closed-form correction).
+        // Latitude is north-positive; when null the correction is disabled.
+        boolean coriolis = shot.getLatitude() != null;
+        final double coriolisOmega = 7.2921159e-5;    // Earth rotation, rad/s
+        double sinLat = coriolis ? Math.sin(UnitUtils.in(shot.getLatitude(), SI.RADIAN)) : 0;
+        double cosLat = coriolis ? Math.cos(UnitUtils.in(shot.getLatitude(), SI.RADIAN)) : 0;
+        double coriolisHCoef = coriolisOmega * sinLat;
+        double v0mps = UnitUtils.in(ammunition.getMuzzleVelocity(), SI.METRE_PER_SECOND);
+        double coriolisVRatio = coriolis
+            ? 1.0 - 2.0 * coriolisOmega * cosLat * Math.sin(barrelAzimuth) * v0mps / 9.80665
+            : 1.0;
+
+        // Aerodynamic (crosswind) jump - Litz, Applied Ballistics Eq 5.4. A horizontal crosswind
+        // gives a spin-stabilized bullet a vertical come-up imparted at the muzzle, then constant in
+        // angle at all ranges: Y[MOA per mph] = 0.01*Sg - 0.0024*L_calibers + 0.032. Gated exactly
+        // like spin drift (needs Sg + twist + bullet dims). Up for a wind from the right with a
+        // right-hand twist (sign flips for left twist / wind from the left).
+        double aeroJumpAngle = 0;
+        if (Boolean.TRUE.equals(calculateDrift) && wind != null) {
+            double lengthCalibers = UnitUtils.in(ammunition.getBulletLength(), Imperial.INCH)
+                                  / UnitUtils.in(ammunition.getBulletDiameter(), Imperial.INCH);
+            double aeroJumpMoaPerMph = 0.01 * stabilityCoefficient - 0.0024 * lengthCalibers + 0.032;
+            // Muzzle crosswind, positive = from the right (wind direction 90 degrees).
+            double crossFromRightMph = UnitUtils.in(wind.getSpeed(), CLDR.MILE_PER_HOUR)
+                                     * Math.sin(UnitUtils.in(wind.getDirection(), SI.RADIAN));
+            int verticalJumpSign = rifle.getRifling().getTwistDirection() == TwistDirection.RIGHT ? 1 : -1;
+            double aeroJumpMoa = aeroJumpMoaPerMph * crossFromRightMph * verticalJumpSign;
+            aeroJumpAngle = UnitUtils.in(Quantities.getQuantity(aeroJumpMoa, BCUnits.MOA), SI.RADIAN);
+        }
+
         var velocity = UnitUtils.in(ammunition.getMuzzleVelocity(), BCUnits.FEET_PER_SECOND);
         double time = 0;
 
@@ -222,11 +258,13 @@ public class TrajectoryCalculator {
                                      -UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT),
                                      0);
 
-        var velocityVector = new Vector(velocity * Math.cos(barrelElevation) * Math.cos(barrelAzimuth),
+        // The bullet is always integrated along the line of fire (vz = 0). Azimuth no longer tilts
+        // the trajectory; it enters only as a scalar into the Coriolis/Eötvös terms above.
+        var velocityVector = new Vector(velocity * Math.cos(barrelElevation),
                                         velocity * Math.sin(barrelElevation),
-                                        velocity * Math.cos(barrelElevation) * Math.sin(barrelAzimuth));
+                                        0);
         int currentItem = 0;
-        var maximumRange = rangeTo + calculationStep;
+        var maximumRange = rangeTo + calculationStep / lineOfSightCos;
         var nextRangeDistance = 0;
 
         var lastAtAltitude = -1000000.0;
@@ -239,8 +277,9 @@ public class TrajectoryCalculator {
         var rawMaximumDrop = UnitUtils.in(mMaximumDrop, CLDR.FOOT);
         var rawMinimumVelocity = UnitUtils.in(mMinimumVelocity, BCUnits.FEET_PER_SECOND);
 
-        //run all the way down the range
-        while (rangeVector.getX() <= maximumRange &&
+        //run all the way down the range. The end guard is compared in the line-of-sight frame
+        //(rangeVector.getX() / lineOfSightCos) so inclined shots do not stop one output step early.
+        while (rangeVector.getX() / lineOfSightCos <= maximumRange &&
                velocity >= rawMinimumVelocity &&
                rangeVector.getY() >= rawMaximumDrop)
         {
@@ -263,21 +302,44 @@ public class TrajectoryCalculator {
             {
                 var windage = rangeVector.getZ();
                 if (Boolean.TRUE.equals(calculateDrift))
+                    // Spin drift is horizontal; on an inclined shot only its cos-projection lies in
+                    // the reported windage plane.
                     windage += (1.25 * (stabilityCoefficient + 1.2) *
                                        Math.pow(time, 1.83) *
-                                       (rifle.getRifling().getTwistDirection() == TwistDirection.RIGHT ? -1 : 1)) / 12.0;
+                                       (rifle.getRifling().getTwistDirection() == TwistDirection.RIGHT ? -1 : 1))
+                               / 12.0 * lineOfSightCos;
+
+                // Coriolis / Eötvös correction (skipped when latitude is null).
+                double ryEffective = rangeVector.getY();
+                if (coriolis) {
+                    // Horizontal deflection: right in the N hemisphere (windage is left +, right -).
+                    windage -= coriolisHCoef * distance * time;
+                    // Eötvös: scale only the gravitational fall below the vacuum bore line, so the
+                    // muzzle drop (where the fall is zero) stays exactly -sightHeight.
+                    double boreLine = rangeVector.getX() * barrelElevationTan - sightHeightFeet;
+                    ryEffective = boreLine + (rangeVector.getY() - boreLine) * coriolisVRatio;
+                }
 
                 // Calculate drop and perform coordinate rotation for angled shots
-                double drop = rangeVector.getY();
+                double drop = ryEffective;
                 double distanceFlat = rangeVector.getX();
-                double dropFlat = rangeVector.getY();
+                double dropFlat = ryEffective;
 
                 if (hasShotAngle) {
-                    // Rotate coordinates from muzzle frame to line-of-sight frame
-                    double y = rangeVector.getY() + UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT);
-                    double xRotated = rangeVector.getX() * lineOfSightCos + y * lineOfSightSin;
+                    // Rotate coordinates from muzzle frame to line-of-sight frame. sightHeight is added
+                    // in the vertical frame but subtracted back in the ROTATED frame; the residual
+                    // sightHeight*(cos-1) pins the muzzle drop to exactly -sightHeight.
+                    double y = ryEffective + sightHeightFeet;
                     double yRotated = -rangeVector.getX() * lineOfSightSin + y * lineOfSightCos;
-                    drop = yRotated - UnitUtils.in(rifle.getZeroingInformation().getSightHeight(), CLDR.FOOT);
+                    drop = yRotated - sightHeightFeet;
+                }
+
+                // Aerodynamic (crosswind) jump: a constant angle => a vertical offset linear in range
+                // (positive = up => less drop). Additive to the Eötvös scaling above and independent
+                // of spin drift (which is horizontal).
+                if (aeroJumpAngle != 0) {
+                    drop += aeroJumpAngle * distance;
+                    dropFlat += aeroJumpAngle * rangeVector.getX();
                 }
 
                 trajectoryPoints[currentItem] = new TrajectoryPoint(
@@ -304,9 +366,12 @@ public class TrajectoryCalculator {
             if (dragTableNode == null)
                 dragTableNode = dragTable.find(currentMach);
 
-            //walk towards the beginning the table as velocity drops
-            while (dragTableNode.getPrevious() != null && dragTableNode.getPrevious().getMach() > currentMach)
+            //walk towards the beginning of the table as the air-relative speed drops
+            while (dragTableNode.getMach() > currentMach)
                 dragTableNode = dragTableNode.getPrevious();
+            //walk forward again when the air-relative speed rises (inclined/transonic shots)
+            while (dragTableNode.getNext() != null && dragTableNode.getNext().getMach() <= currentMach)
+                dragTableNode = dragTableNode.getNext();
 
             var cd = dragTableNode.calculateDrag(currentMach);
             drag = accumulatedFactor * densityFactor *
@@ -325,7 +390,9 @@ public class TrajectoryCalculator {
 
             rangeVector = rangeVector.add(deltaRangeVector);
             velocity = velocityVector.getMagnitude();
-            time += deltaRangeVector.getMagnitude() / velocity;
+            //flight time is the sum of the integration timesteps (re-deriving it from
+            //displacement/speed diverges on angled shots)
+            time += deltaTime;
         }
 
         return trajectoryPoints;
@@ -338,10 +405,18 @@ public class TrajectoryCalculator {
         return step;
     }
 
-    /** Calculates the vector of wind velocities */
+    /** Calculates the vector of wind velocities.
+     *
+     * Wind direction convention: 0° = toward the target (tailwind), 90° = from the right,
+     * 270°/−90° = from the left, 180° = toward the shooter (headwind).
+     */
     private static Vector calculateWindVector(ShotParameters shot, Wind wind, Unit<Speed> units) {
-        double sightCosine = Math.cos(UnitUtils.in(shot.getSightAngle(), SI.RADIAN));
-        double sightSine = Math.sin(UnitUtils.in(shot.getSightAngle(), SI.RADIAN));
+        // Project the wind onto the (possibly inclined) line of fire: sight angle plus shot angle.
+        double lineOfFire = UnitUtils.in(shot.getSightAngle(), SI.RADIAN);
+        if (shot.getShotAngle() != null)
+            lineOfFire += UnitUtils.in(shot.getShotAngle(), SI.RADIAN);
+        double sightCosine = Math.cos(lineOfFire);
+        double sightSine = Math.sin(lineOfFire);
 
         Quantity<Angle> cantAngle = shot.getCantAngle();
         if (cantAngle == null)

@@ -136,7 +136,7 @@ public class Atmosphere {
     // @param temperature The temperature in Kelvins
     // @returns The speed of sound in m/s
     private double calculateSoundVelocity(double temperature){
-        return 331 * Math.sqrt(temperature / 273);
+        return 331.3 * Math.sqrt(temperature / 273.15);
     }
 
     // https://www.mide.com/air-pressure-at-altitude-calculator

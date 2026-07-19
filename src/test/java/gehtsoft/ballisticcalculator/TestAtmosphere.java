@@ -67,7 +67,7 @@ class TestAtmosphere {
 
       var ss = atm.getSpeedOfSound(t);
       assertThat(UnitUtils.in(ss, SI.METRE_PER_SECOND))
-              .isEqualTo(336.2, within(0.1));
+              .isEqualTo(336.42, within(0.1));
 
       var df = atm.getDensityFactorForTemperature(Quantities.getQuantity(1000, SI.METRE), t);
       assertThat(df).isEqualTo(0.83370452858203414996288047512992, within(0.1));

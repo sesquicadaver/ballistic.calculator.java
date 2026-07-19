@@ -13,6 +13,7 @@ public class ShotParameters {
     private Quantity<Angle> mShotAngle;
     private Quantity<Angle> mCantAngle;
     private Quantity<Angle> mBarrelAzimuth;
+    private Quantity<Angle> mLatitude;
 
     /** Returns the maximum distance */
     public Quantity<Length> getMaximumDistance() {
@@ -54,18 +55,27 @@ public class ShotParameters {
         return mBarrelAzimuth;
     }
 
-    /** Minimum constructor 
+    /** Returns the shooting position latitude used for the Coriolis/Eötvös correction.
+     *
+     * The value is optional (north positive, south negative). When {@code null} the
+     * Coriolis correction is disabled.
+     */
+    public Quantity<Angle> getLatitude() {
+        return mLatitude;
+    }
+
+    /** Minimum constructor
      * 
      * @param maximumDistance The maximum distance to calculate the trajectory
      * @param step The calculation step
      * @param sightAngle The sight angle. Use trajectory calculator to calculate the sight angle from the zeroing information.
     */
     public ShotParameters(Quantity<Length> maximumDistance, Quantity<Length> step, Quantity<Angle> sightAngle) {
-        this(maximumDistance, step, sightAngle, null, null, null);
+        this(maximumDistance, step, sightAngle, null, null, null, null);
     }
 
-    /** Full constructor 
-     * 
+    /** Full constructor
+     *
      * @param maximumDistance The maximum distance to calculate the trajectory
      * @param step The calculation step
      * @param sightAngle The sight angle. Use trajectory calculator to calculate the sight angle from the zeroing information.
@@ -74,11 +84,26 @@ public class ShotParameters {
      * @param barrelAzimuth The azimuth of the barrel. The parameter is optional
     */
     public ShotParameters(Quantity<Length> maximumDistance, Quantity<Length> step, Quantity<Angle> sightAngle, Quantity<Angle> shotAngle, Quantity<Angle> cantAngle, Quantity<Angle> barrelAzimuth) {
+        this(maximumDistance, step, sightAngle, shotAngle, cantAngle, barrelAzimuth, null);
+    }
+
+    /** Full constructor with Coriolis latitude
+     *
+     * @param maximumDistance The maximum distance to calculate the trajectory
+     * @param step The calculation step
+     * @param sightAngle The sight angle. Use trajectory calculator to calculate the sight angle from the zeroing information.
+     * @param shotAngle The shot angle. The parameter is optional
+     * @param cantAngle The weapon cant angle. The parameter is optional
+     * @param barrelAzimuth The azimuth of the barrel. The parameter is optional
+     * @param latitude The shooting position latitude (north positive). The parameter is optional; when null the Coriolis correction is disabled.
+    */
+    public ShotParameters(Quantity<Length> maximumDistance, Quantity<Length> step, Quantity<Angle> sightAngle, Quantity<Angle> shotAngle, Quantity<Angle> cantAngle, Quantity<Angle> barrelAzimuth, Quantity<Angle> latitude) {
         mMaximumDistance = maximumDistance;
         mStep = step;
         mSightAngle = sightAngle;
         mShotAngle = shotAngle;
         mCantAngle = cantAngle;
         mBarrelAzimuth = barrelAzimuth;
+        mLatitude = latitude;
     }
 }
